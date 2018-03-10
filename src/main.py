@@ -2,7 +2,7 @@ from urllib import request
 from bs4 import BeautifulSoup
 import re
 import csv
-
+from functional import seq
 
 def parse_details(details):
     details.strip(' ')
@@ -105,24 +105,20 @@ def scrape(url):
     with open('exported_details.csv', 'w') as csvfile:
         fieldnames = ['Organization', 'Organization Link', 'Contact', 'Phone', 'Address']
         writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-
         writer.writeheader()
 
         page = request.urlopen(url)
         soup = BeautifulSoup(page, 'html.parser')
 
-        paragraphs = soup.find_all('p')
+        all_paragraphs = soup.find_all('p')
+        organization_info = (all_paragraphs[:253] + all_paragraphs[266:])[1:]
 
-        for i in range(len(paragraphs)):
-            line = convert_paragraph(paragraphs[i])
+        results = seq(organization_info) \
+            .map(convert_paragraph) \
+            .filter(lambda line: line != False)
 
-            if i not in range(253, 266) and i != 0:
-                if line != False:
-                    writer.writerow({'Organization': line[0],
-                                     'Organization Link': line[1],
-                                     'Contact': line[2],
-                                     'Phone': line[3],
-                                     'Address': line[4]})
+        for result in results:
+            writer.writerow(dict(zip(fieldnames, result)))
 
 
 def test():
